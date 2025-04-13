@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>聊天室</title>
+    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/chat-app/css/index.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar bg-body-tertiary">
+        <div class="container">
+            <span class="navbar-brand">DeepSeek 聊天室</span>
+            <div class="d-flex">
+                <span id="currentUser" class="me-3"></span>
+                <form action="{{ url_for('src.logout') }}" method="POST">
+                    <button type="submit" class="btn btn-outline-danger">退出</button>
+                </form>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-3">
+        <!-- 添加欢迎提示语 -->
+        <div class="alert alert-info welcome-message" id="welcomeMessage">
+            <span id="welcomeText"></span>
+        </div>
+
+        <div class="card">
+            <div class="card-body messages-container" id="messages"></div>
+        </div>
+
+        <form class="mt-3" id="chatForm">
+            <div class="input-group">
+                <input type="text" class="form-control"
+                       id="messageInput"
+                       placeholder="输入消息..."
+                       autocomplete="off"
+                       required>
+                <button type="submit" class="btn btn-primary" id="sendButton">
+                    <span class="send-text">发送</span>
+                    <div class="spinner-border spinner-border-sm d-none" role="status" id="spinner"></div>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <script src="/static/chat-app/js/app.js"></script>
+    <script>
+        // 显示欢迎信息
+        document.addEventListener('DOMContentLoaded', function() {
+            // 从session或cookie中获取用户名
+            const username = "{{ user.username }}" || "访客";
+            document.getElementById('welcomeText').textContent = `欢迎，${username}！`;
+            document.getElementById('currentUser').textContent = username;
+
+            // 5秒后自动隐藏欢迎信息
+            setTimeout(() => {
+                document.getElementById('welcomeMessage').classList.add('fade-out');
+                setTimeout(() => {
+                    document.getElementById('welcomeMessage').style.display = 'none';
+                }, 500);
+            }, 5000);
+        });
+
+        // 处理聊天表单提交
+        document.getElementById('chatForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value.trim();
+
+            if (!message) return;
+
+            // 显示用户消息
+            addMessage('user', message);
+            messageInput.value = '';
+
+            // 显示加载状态
+            document.getElementById('spinner').classList.remove('d-none');
+            document.querySelector('.send-text').textContent = '发送中...';
+            document.getElementById('sendButton').disabled = true;
+
+            try {
+                // 调用DeepSeek本地API
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        user_id: "{{ user.id }}" || null
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('API请求失败');
+                }
+
+                const data = await response.json();
+                // 显示AI回复
+                addMessage('ai', data.response);
+            } catch (error) {
+                console.error('Error:', error);
+                addMessage('system', '抱歉，发生错误，请稍后再试。');
+            } finally {
+                // 重置发送按钮状态
+                document.getElementById('spinner').classList.add('d-none');
+                document.querySelector('.send-text').textContent = '发送';
+                document.getElementById('sendButton').disabled = false;
+            }
+        });
+
+        // 添加消息到聊天窗口
+        function addMessage(sender, text) {
+            const messagesContainer = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message', sender);
+
+            const senderName = sender === 'user' ? '你' : 'DeepSeek';
+            const timestamp = new Date().toLocaleTimeString();
+
+            messageDiv.innerHTML = `
+                <div class="message-header">
+                    <strong>${senderName}</strong>
+                    <small class="text-muted">${timestamp}</small>
+                </div>
+                <div class="message-content">${text}</div>
+            `;
+
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>用户注册</title>
+    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/chat-app/css/index.css" rel="stylesheet">
+</head>
+<body class="auth-page">
+    <div class="container">
+        <div class="card mx-auto" style="max-width: 400px;">
+            <div class="card-body">
+                <h2 class="text-center mb-4">新用户注册</h2>
+                <form id="registerForm">
+                    <!-- 用户名输入 -->
+                    <div class="mb-3">
+                        <input type="text" class="form-control"
+                               id="regUsername"
+                               placeholder="用户名（4-16位字母数字）"
+                               pattern="[A-Za-z0-9]{4,16}"
+                               required>
+                        <div class="invalid-feedback">请输入4-16位字母或数字组合的用户名</div>
+                    </div>
+
+                    <!-- 邮箱输入 -->
+                    <div class="mb-3">
+                        <input type="email" class="form-control"
+                               id="regEmail"
+                               placeholder="电子邮箱"
+                               required>
+                        <div class="invalid-feedback">请输入有效的邮箱地址</div>
+                    </div>
+
+                    <!-- 密码输入 -->
+                    <div class="mb-3">
+                        <input type="password" class="form-control"
+                               id="regPassword"
+                               placeholder="密码（至少8位）"
+                               minlength="8"
+                               required>
+                        <div class="password-strength mt-1">
+                            <div class="progress" style="height: 3px;">
+                                <div class="progress-bar" role="progressbar"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 确认密码 -->
+                    <div class="mb-3">
+                        <input type="password" class="form-control"
+                               id="regConfirmPassword"
+                               placeholder="确认密码"
+                               required>
+                        <div class="invalid-feedback">两次输入的密码不一致</div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">立即注册</button>
+                </form>
+                <div class="text-center mt-3">
+                    <span>已有账号？</span>
+                    <a href="/login" class="text-decoration-none">立即登录</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/chat-app/js/chat.js"></script>
+</body>
+</html>

@@ -1,0 +1,459 @@
+import logging
+import string
+import random
+from functools import wraps
+
+from flask import request, jsonify, session, url_for, make_response, g
+from flask import Blueprint, current_app, render_template, redirect, render_template_string
+
+from src.dk_client import LocalLLMClient, LocalLLMConfig
+from src.extensions import db
+from src.models import User
+from io import BytesIO
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
+
+# 配置结构化日志（优化日志格式）
+logging.basicConfig(
+    format='%(asctime)s - %(levelname)s - %(name)s - [%(filename)s:%(lineno)d] - %(message)s',
+    level=logging.INFO
+)
+logger = logging.getLogger("__name__")
+
+auth = Blueprint('src', __name__)
+
+# 验证码存储
+captcha_store = {}
+
+
+# 使用Redis或数据库存储
+# import redis
+# captcha_store = redis.Redis(host='localhost', port=6379, db=0)
+
+
+@auth.route('/')
+def home():
+    return redirect('/login')
+
+
+# 登录检查装饰器
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'username' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+
+    return decorated_function
+
+
+# 登录页面
+@login_required
+@auth.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'GET':
+        return render_template('login.html')
+
+    # 处理POST请求
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+    captcha = data.get('captcha', '').lower()
+    # remember = data.get('remember', False)
+
+    # 验证验证码
+    session_id = request.cookies.get('session') or request.remote_addr
+    stored_captcha = captcha_store.pop(session_id, None)
+
+    if not stored_captcha or captcha != stored_captcha:
+        return jsonify({'success': False, 'message': '验证码错误'}), 400
+
+    # 验证用户名和密码
+    user = User.query.filter_by(username=username).first()
+    if not user or not user.check_password(password):
+        return jsonify({'success': False, 'message': '用户名或密码错误'}), 401
+
+    # 登录成功
+    session['user_id'] = user.id
+    session['username'] = user.username
+
+    response = jsonify({
+        'success': True,
+        'message': '登录成功',
+        'redirect': url_for('src.index')
+    })
+
+    # if remember:
+    #     # 设置长期有效的session - 实际项目中应该设置合理的过期时间
+    #     session.permanent = True
+
+    return response
+
+
+@auth.route('/terms')
+def terms_of_service():
+    return render_template_string('''
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>服务条款 - 我的网站</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+        .terms-container {
+            max-width: 800px;
+            margin: 30px auto;
+            padding: 20px;
+            background: #fff;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 5px;
+        }
+        .terms-content {
+            max-height: 70vh;
+            overflow-y: auto;
+            padding: 15px;
+            border: 1px solid #eee;
+            margin-bottom: 20px;
+            background: #f9f9f9;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        h2 {
+            color: #3498db;
+            margin-top: 25px;
+        }
+        .btn-accept {
+            background-color: #3498db;
+            color: white;
+        }
+        footer {
+            margin-top: 30px;
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+        @media (max-width: 768px) {
+            .terms-container {
+                margin: 10px;
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="terms-container">
+        <h1>服务条款</h1>
+        <p class="text-muted">最后更新日期：2023年11月15日</p>
+
+        <div class="terms-content">
+            <h2>1. 接受条款</h2>
+            <p>通过访问和使用本网站，您同意遵守本服务条款的所有规定...</p>
+
+            <h2>2. 服务描述</h2>
+            <p>我们提供...服务，具体包括但不限于...</p>
+
+            <h2>3. 用户义务</h2>
+            <p>您同意不将本服务用于任何非法目的...</p>
+
+            <h2>4. 隐私政策</h2>
+            <p>您的隐私对我们很重要，请参阅我们的<a href="/privacy">隐私政策</a>...</p>
+
+            <h2>5. 知识产权</h2>
+            <p>本网站所有内容，包括但不限于文本、图形、标识...</p>
+
+            <h2>6. 免责声明</h2>
+            <p>本服务按"现状"提供，我们不做出任何明示或暗示的保证...</p>
+
+            <h2>7. 责任限制</h2>
+            <p>在任何情况下，我们都不对任何间接、附带、特殊...</p>
+
+            <h2>8. 条款修改</h2>
+            <p>我们保留随时修改这些条款的权利，修改后的条款将在发布后立即生效...</p>
+
+            <h2>9. 终止</h2>
+            <p>我们保留自行决定终止或暂停您访问服务的权利...</p>
+
+            <h2>10. 适用法律</h2>
+            <p>本条款受中华人民共和国法律管辖并按其解释...</p>
+        </div>
+
+        <div class="d-flex justify-content-between mt-4">
+            <a href="/" class="btn btn-outline-secondary">返回首页</a>
+            <!--div>
+                <href="/privacy" class="btn btn-outline-primary me-2">隐私政策</a>
+                <a href="/login" class="btn btn-accept">同意并继续</a>
+            </div-->
+        </div>
+
+        <footer>
+            <p>© 2023 我的公司 版权所有 | 联系方式: service@example.com</p>
+        </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+''')
+
+
+@auth.route('/register')
+def register():
+    return render_template('register.html')
+
+
+@auth.route('/index')
+def index():
+    return render_template('index.html')
+
+
+@auth.route('/logout', methods=['POST'])
+def logout():
+    session.clear()
+    return redirect(url_for('src.login'))
+
+
+def generate_captcha_text(length=None):
+    """生成随机验证码文本"""
+    if length is None:
+        length = current_app.config['CAPTCHA_LENGTH']
+
+    chars = string.ascii_uppercase + string.digits
+    exclude_chars = {'0', 'O', '1', 'I', 'l', 'L', 'o'}
+    chars = [c for c in chars if c not in exclude_chars]
+    return ''.join(random.choices(chars, k=length))
+
+
+def generate_captcha_image(text):
+    """生成验证码图片"""
+    length = current_app.config.get('CAPTCHA_LENGTH')
+    width = current_app.config.get('CAPTCHA_WIDTH')
+    height = current_app.config.get('CAPTCHA_HEIGHT')
+    background = current_app.config.get('CAPTCHA_BACKGROUND')
+    font_size = current_app.config.get('CAPTCHA_FONT_SIZE')
+    font_colors = current_app.config.get('CAPTCHA_FONT_COLORS')
+    noise_points = current_app.config.get('CAPTCHA_NOISE_POINTS')
+    noise_lines = current_app.config.get('CAPTCHA_NOISE_LINES')
+    image = Image.new('RGB', (width, height), background)
+    draw = ImageDraw.Draw(image)
+
+    try:
+        font = ImageFont.truetype("arial.ttf", font_size)
+    except IOError:
+        font = ImageFont.load_default()
+
+    # 绘制文本
+    x = 10
+    for char in text:
+        color = random.choice(font_colors)
+        y_offset = random.randint(-5, 5)
+        draw.text((x, 10 + y_offset), char, fill=color, font=font)
+        x += width // (length + 1)
+
+    # 添加干扰
+    for _ in range(noise_lines):
+        x1 = random.randint(0, width)
+        y1 = random.randint(0, height)
+        x2 = random.randint(0, width)
+        y2 = random.randint(0, height)
+        draw.line([(x1, y1), (x2, y2)], fill=random.choice(font_colors), width=1)
+
+    for _ in range(noise_points):
+        draw.point(
+            (random.randint(0, width), random.randint(0, height)),
+            fill=random.choice(font_colors)
+        )
+
+    image = image.filter(ImageFilter.SMOOTH)
+    return image
+
+
+@auth.route('/api/captcha')
+def get_captcha():
+    """获取验证码图片"""
+    captcha_text = generate_captcha_text()
+    session_id = request.cookies.get('session') or request.remote_addr
+    captcha_store[session_id] = captcha_text.lower()
+
+    image = generate_captcha_image(captcha_text)
+    byte_io = BytesIO()
+    image.save(byte_io, 'PNG')
+    byte_io.seek(0)
+
+    response = make_response(byte_io.getvalue())
+    response.headers['Content-Type'] = 'image/png'
+    return response
+
+
+def validate_registration(data):
+    errors = {}
+    if User.query.filter_by(username=data['username']).first():
+        errors['username'] = '用户名已存在'
+    if User.query.filter_by(email=data['email']).first():
+        errors['email'] = '邮箱已被注册'
+    if len(data['password']) < 8:
+        errors['password'] = '密码至少需要8个字符'
+    if data['password'] != data.get('confirm_password'):
+        errors['confirm_password'] = '密码不一致'
+    return errors
+
+
+# 视图函数
+@auth.route('/api/register', methods=['POST'])
+def api_register():
+    data = request.get_json()
+    # 验证数据
+    errors = validate_registration(data)
+    if errors:
+        return jsonify({'errors': errors}), 400
+
+    try:
+        new_user = User(
+            username=data['username'],
+            email=data['email']
+        )
+        new_user.set_password(data['password'])
+
+        db.session.add(new_user)
+        db.session.commit()
+
+        return jsonify({
+            'message': '注册成功',
+            'user': {
+                'id': new_user.id,
+                'username': new_user.username
+            }
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': '注册失败，请稍后重试'}), 500
+
+
+class APIConnectionError(Exception):
+    def __init__(self, message: str):
+        super().__init__(f"[API连接异常] {message}")
+
+
+def handle_api_errors(f):
+    """装饰器用于统一处理API错误"""
+
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except APIConnectionError as e:
+            logger.error(f"API连接错误: {str(e)}", exc_info=True)
+            return jsonify({
+                'status': 'error',
+                'message': '无法连接到AI服务，请稍后再试',
+                'error': str(e)
+            }), 503
+        except Exception as e:
+            logger.error(f"未处理的异常: {str(e)}", exc_info=True)
+            return jsonify({
+                'status': 'error',
+                'message': '处理请求时发生内部错误',
+                'error': str(e)
+            }), 500
+
+    return wrapper
+
+
+def validate_chat_request(data):
+    """验证聊天请求数据"""
+    if not data:
+        return False, "请求体不能为空"
+
+    message = data.get('message')
+    if not message or not isinstance(message, str):
+        return False, "消息内容无效或缺失"
+
+    return True, {'message': message, 'username': 'user'}
+
+
+@auth.route('/api/chat', methods=['POST'])
+@handle_api_errors
+def chat_api():
+    """处理聊天API请求 """
+
+    # 1. 验证请求数据
+    is_valid, validation_result = validate_chat_request(request.get_json())
+    if not is_valid:
+        return jsonify({
+            'status': 'error',
+            'message': validation_result
+        }), 400
+
+    message_data = validation_result
+
+    # 2. 初始化LLM配置
+    config = LocalLLMConfig(
+        endpoint=current_app.config['DEFAULT_ENDPOINT'],
+        model_name=current_app.config['DEFAULT_MODEL'],
+        temperature=current_app.config['DEFAULT_TEMPERATURE']
+    )
+
+    # 3. 创建客户端并生成响应
+    client = LocalLLMClient(config)
+    messages = [{"role": message_data['username'], "content": message_data['message']}]
+
+    try:
+        response = client.generate(messages=messages)
+        result = next(response)
+
+        # 4. 验证并处理响应
+        if not result or not isinstance(result, dict):
+            raise ValueError("无效的API响应格式")
+
+        content = result.get('message', {}).get('content', '')
+        if not content:
+            logger.warning("收到空响应内容", extra={"response": result})
+            content = "抱歉，我无法理解这个问题。"
+
+        # 5. 返回成功响应
+        return jsonify({
+            'response': content,
+            'status': 'success',
+            'model': current_app.config['DEFAULT_MODEL']
+        })
+
+    except StopIteration:
+        logger.error("API响应为空")
+        return jsonify({
+            'status': 'error',
+            'message': 'AI服务未返回有效响应'
+        }), 503
+
+
+# 错误处理
+@auth.errorhandler(404)
+def not_found(error):
+    return jsonify({'error': '资源未找到'}), 404
+
+
+@auth.errorhandler(500)
+def internal_error(error):
+    return jsonify({'error': '服务器内部错误'}), 500
+
+
+@auth.before_request
+def load_logged_in_user():
+    user_id = session.get("user_id")
+    if user_id:
+        user = db.session.get(User, user_id)
+        setattr(g, "user", user)
+    else:
+        setattr(g, "user", None)
+
+
+@auth.context_processor
+def inject_user_into_templates():
+    return {"user": g.user}

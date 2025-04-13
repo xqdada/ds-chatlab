@@ -1,0 +1,147 @@
+/* 通用样式 */
+.auth-page {
+    background-color: #f8f9fa;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+}
+
+/* 消息容器 */
+.messages-container {
+    height: 70vh;
+    overflow-y: auto;
+    padding: 1rem;
+}
+
+/* 消息样式 */
+.message {
+    max-width: 80%;
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    border-radius: 1rem;
+}
+
+.message.ai {
+    background-color: #e9ecef;
+    margin-right: auto;
+}
+
+.message.user {
+    background-color: #0d6efd;
+    color: white;
+    margin-left: auto;
+}
+
+.message.error {
+    background-color: #dc3545;
+    color: white;
+}
+
+/* 消息时间 */
+.message-time {
+    font-size: 0.75rem;
+    color: #6c757d;
+    text-align: right;
+    margin-top: 0.25rem;
+}
+
+/* 加载动画 */
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.spinner-border {
+    animation: spin 0.75s linear infinite;
+}
+
+/* 密码强度指示器 */
+.password-strength .progress-bar {
+    transition: width 0.3s ease;
+}
+
+.password-weak {
+    background-color: #dc3545;
+    width: 30%;
+}
+
+.password-medium {
+    background-color: #ffc107;
+    width: 60%;
+}
+
+.password-strong {
+    background-color: #198754;
+    width: 100%;
+}
+
+/* 验证提示样式 */
+.invalid-feedback {
+    display: none;
+    font-size: 0.875em;
+}
+
+.was-validated .form-control:invalid ~ .invalid-feedback,
+.was-validated .form-control:invalid:focus ~ .invalid-feedback {
+    display: block;
+}
+
+
+/* CSS动画样式（需添加到CSS文件）*/
+.fade-in { animation: fadeIn 0.3s; }
+.fade-out { animation: fadeOut 0.3s; }
+@keyframes fadeIn { from { opacity:0; } }
+@keyframes fadeOut { to { opacity:0; } }
+.toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    z-index: 1000;
+}
+
+        .welcome-message {
+            transition: opacity 0.5s ease;
+        }
+
+        .fade-out {
+            opacity: 0;
+        }
+
+        .messages-container {
+            height: 500px;
+            overflow-y: auto;
+            padding: 15px;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            border-radius: 10px;
+            max-width: 80%;
+        }
+
+        .message.user {
+            margin-left: auto;
+            background-color: #007bff;
+            color: white;
+        }
+
+        .message.ai {
+            margin-right: auto;
+            background-color: #f1f1f1;
+        }
+
+        .message.system {
+            margin: 0 auto;
+            background-color: #ffc107;
+            text-align: center;
+            max-width: 100%;
+        }
+
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+        }
