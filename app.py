@@ -16,6 +16,9 @@ def create_app():
     bcrypt.init_app(app)
     migrate.init_app(app, db)
 
+    from src.extensions import mail
+    mail.init_app(app)
+
     # 注册蓝图
     from src.routers import auth
     app.register_blueprint(auth)

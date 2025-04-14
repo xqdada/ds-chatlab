@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>登录</title>
     <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link href="/static/chat-app/css/index.css" rel="stylesheet">
+    <link href="/static/chat-app/css/login.css" rel="stylesheet">
 </head>
 <body class="auth-page">
     <div class="container">
@@ -16,8 +18,11 @@
                     <div class="mb-3">
                         <input type="text" class="form-control" id="username" placeholder="用户名" required>
                     </div>
-                    <div class="mb-3">
+                    <div class="password-wrapper mb-3 ">
                         <input type="password" class="form-control" id="password" placeholder="密码" required>
+                        <span class="toggle-password">
+                            <i class="fas fa-eye"></i>
+                        </span>
                     </div>
 
                     <div class="mb-3">
@@ -41,15 +46,16 @@
                         </div>
                     </div>
                     <button type="submit" class="btn btn-primary w-100">登录</button>
-
                 </form>
-                <div class="text-center mt-3">
+                <div class="mt-3  d-flex justify-content-between">
+                    <a href="/forgot_password" class="text-secondary text-decoration-none">忘记密码？</a>
                     <a href="/register" class="text-decoration-none">注册新账号</a>
                 </div>
             </div>
         </div>
     </div>
 
+    <script src="/static/chat-app/js/login.js"></script>
     <script src="/static/chat-app/js/chat.js"></script>
 </body>
 </html>

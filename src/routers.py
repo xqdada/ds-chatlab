@@ -7,10 +7,12 @@ from flask import request, jsonify, session, url_for, make_response, g
 from flask import Blueprint, current_app, render_template, redirect, render_template_string
 
 from src.dk_client import LocalLLMClient, LocalLLMConfig
-from src.extensions import db
+from src.extensions import db, mail
 from src.models import User
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from flask_mail import Message
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
 # 配置结构化日志（优化日志格式）
 logging.basicConfig(
@@ -27,7 +29,22 @@ captcha_store = {}
 
 # 使用Redis或数据库存储
 # import redis
-# captcha_store = redis.Redis(host='localhost', port=6379, db=0)
+# from datetime import timedelta
+#
+# captcha_store = redis.Redis(
+#     host='localhost',
+#     port=6379,
+#     db=0,
+#     decode_responses=True
+# )
+#
+#
+# def store_captcha(session_id, captcha_text, expire=300):
+#     captcha_store.setex(session_id, timedelta(seconds=expire), captcha_text)
+#
+#
+# def get_captcha(session_id):
+#     return captcha_store.get(session_id)
 
 
 @auth.route('/')
@@ -205,6 +222,11 @@ def terms_of_service():
 ''')
 
 
+@auth.route('/forgot_password')
+def forgot_password():
+    return render_template('forgot_password.html')
+
+
 @auth.route('/register')
 def register():
     return render_template('register.html')
@@ -293,6 +315,138 @@ def get_captcha():
     return response
 
 
+def get_serializer():
+    """每次使用时动态获取"""
+    return URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+
+
+# 定义忘记密码的API路由
+@auth.route('/api/forgot-password', methods=['GET', 'POST'])
+def api_forgot_password():
+    """处理忘记密码的请求"""
+
+    # 获取请求中的JSON数据
+    data = request.get_json()
+    # 检查数据是否存在且包含email字段
+    if not data or 'email' not in data:
+        return jsonify({"success": False, "message": "缺少邮箱参数"}), 400
+
+    # 提取、整理email数据
+    email = data['email'].strip().lower()
+
+    # 1. 验证邮箱是否存在
+    user = User.query.filter_by(email=email)
+    if not user:
+        return jsonify({
+            "success": True,
+            "message": "如果该邮箱已注册，重置链接将发送到您的邮箱"
+        })
+
+    # 2. 生成加密Token（包含邮箱和过期时间）
+    try:
+        serializer = get_serializer()
+        token = serializer.dumps(
+            email,
+            salt=current_app.config['PASSWORD_RESET_SALT']
+        )
+    except Exception as e:
+        logger.error(f"Token生成失败: {str(e)}")
+        return jsonify({"success": False, "message": "系统错误"}), 500
+
+    # 3. 发送密码重置邮件
+    try:
+        reset_url = url_for(
+            'src.reset_password',
+            token=token,
+            _external=True
+        )
+        msg = Message(
+            subject="DeepSeek聊天室密码重置",
+            recipients=[email],
+            html=f'''
+            <h3>密码重置请求</h3>
+            <p>请点击以下链接重置您的密码（有效期1小时）：</p>
+            <p><a href="{reset_url}">{reset_url}</a></p>
+            <p>如果您未请求重置密码，请忽略此邮件。</p>
+            <hr>
+            <small>DeepSeek团队</small>
+            '''
+        )
+        mail.send(msg)
+    except Exception as e:
+        logger.error(f"邮件发送失败: {str(e)}")
+        return jsonify({"success": False, "message": "邮件发送失败"}), 500
+
+    # 返回成功响应
+    return jsonify({
+        "success": True,
+        "message": "重置链接已发送到您的邮箱"
+    })
+
+
+@auth.route('/api/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    """处理密码重置请求"""
+
+    # 创建一个序列化器对象，用于解码和验证令牌
+    serializer = get_serializer()
+
+    try:
+        # 尝试从令牌中加载用户的电子邮件地址，同时检查令牌是否过期
+        email = serializer.loads(
+            token,
+            salt=current_app.config['PASSWORD_RESET_SALT'],
+            max_age=current_app.config['PASSWORD_RESET_EXPIRE']
+        )
+        # 查询数据库以获取用户对象
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            raise ValueError("用户不存在")
+
+    except (SignatureExpired, BadSignature) as e:
+        # 如果令牌过期或无效，根据请求方法返回相应的响应
+        if request.method == 'GET':
+            # 对于GET请求，尝试从令牌中加载电子邮件地址（不检查过期时间）
+            email = serializer.loads(
+                token,
+                salt=current_app.config['PASSWORD_RESET_SALT']
+            )
+            # 返回密码重置令牌过期页面
+            return render_template('reset_password_expired.html', email=email, token=token)
+
+        # 对于POST请求，返回错误信息
+        return jsonify({"success": False, "message": str(e)}), 400
+
+    # 处理GET请求，返回密码重置页面
+    if request.method == 'GET':
+        return render_template('reset_password.html',
+                               email=email,
+                               token=token)
+
+    # 处理POST请求，获取新密码
+    data = request.get_json()
+    if not data or 'password' not in data:
+        # 如果未提供新密码，返回错误信息
+        return jsonify({"success": False, "message": "需要提供新密码"}), 400
+
+    try:
+        # 更新用户密码并提交到数据库
+        user.set_password(data['password'])
+        db.session.commit()
+        # 返回成功信息和登录页面的重定向URL
+        return jsonify({
+            "success": True,
+            "message": "密码已重置",
+            "redirect": url_for('src.login')
+        })
+    except Exception as e:
+        # 如果密码更新失败，回滚数据库更改并记录错误日志
+        db.session.rollback()
+        logger.error(f"密码重置失败: {str(e)}")
+        # 返回错误信息
+        return jsonify({"success": False, "message": "密码更新失败"}), 500
+
+
 def validate_registration(data):
     errors = {}
     if User.query.filter_by(username=data['username']).first():
@@ -306,7 +460,6 @@ def validate_registration(data):
     return errors
 
 
-# 视图函数
 @auth.route('/api/register', methods=['POST'])
 def api_register():
     data = request.get_json()
@@ -344,7 +497,6 @@ class APIConnectionError(Exception):
 
 def handle_api_errors(f):
     """装饰器用于统一处理API错误"""
-
     @wraps(f)
     def wrapper(*args, **kwargs):
         try:

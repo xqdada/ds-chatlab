@@ -1,0 +1,15 @@
+.password-wrapper {
+    position: relative;
+    width: 100%; /* 可根据需求调整宽度 */
+}
+.password-wrapper .toggle-password {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: #777;
+}
+.password-wrapper .toggle-password:hover {
+    color: #333;
+}

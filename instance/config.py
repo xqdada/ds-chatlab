@@ -15,3 +15,13 @@ CAPTCHA_FONT_SIZE = 25
 CAPTCHA_FONT_COLORS = [(0, 0, 0), (255, 0, 0), (0, 0, 255), (0, 128, 0)]
 CAPTCHA_NOISE_POINTS = 50
 CAPTCHA_NOISE_LINES = 3
+
+# 邮件服务器配置
+MAIL_SERVER = 'smtp.sina.cn'
+MAIL_PORT = 465
+MAIL_USE_SSL = True
+MAIL_USERNAME = 'sun2moon@sina.cn'
+MAIL_DEFAULT_SENDER = ('DeepSeek聊天室', 'hehe@sina.cn')
+MAIL_PASSWORD = 'xxxxxx'  # 邮件服务器授权码
+PASSWORD_RESET_SALT = 'deepskyblue'
+PASSWORD_RESET_EXPIRE = 3600
