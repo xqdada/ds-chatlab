@@ -21,7 +21,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("__name__")
 
-auth = Blueprint('src', __name__)
+api_bp = Blueprint('api', __name__)
 
 # 验证码存储
 captcha_store = {}
@@ -47,7 +47,7 @@ captcha_store = {}
 #     return captcha_store.get(session_id)
 
 
-@auth.route('/')
+@api_bp.route('/')
 def home():
     return redirect('/login')
 
@@ -65,7 +65,7 @@ def login_required(f):
 
 # 登录页面
 @login_required
-@auth.route('/login', methods=['GET', 'POST'])
+@api_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'GET':
         return render_template('login.html')
@@ -96,7 +96,7 @@ def login():
     response = jsonify({
         'success': True,
         'message': '登录成功',
-        'redirect': url_for('src.index')
+        'redirect': url_for('auth.index')
     })
 
     # if remember:
@@ -106,141 +106,10 @@ def login():
     return response
 
 
-@auth.route('/terms')
-def terms_of_service():
-    return render_template_string('''
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>服务条款 - 我的网站</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Helvetica Neue', Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-        }
-        .terms-container {
-            max-width: 800px;
-            margin: 30px auto;
-            padding: 20px;
-            background: #fff;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-            border-radius: 5px;
-        }
-        .terms-content {
-            max-height: 70vh;
-            overflow-y: auto;
-            padding: 15px;
-            border: 1px solid #eee;
-            margin-bottom: 20px;
-            background: #f9f9f9;
-        }
-        h1 {
-            color: #2c3e50;
-            border-bottom: 2px solid #eee;
-            padding-bottom: 10px;
-            margin-bottom: 20px;
-        }
-        h2 {
-            color: #3498db;
-            margin-top: 25px;
-        }
-        .btn-accept {
-            background-color: #3498db;
-            color: white;
-        }
-        footer {
-            margin-top: 30px;
-            text-align: center;
-            color: #7f8c8d;
-            font-size: 0.9em;
-        }
-        @media (max-width: 768px) {
-            .terms-container {
-                margin: 10px;
-                padding: 15px;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="terms-container">
-        <h1>服务条款</h1>
-        <p class="text-muted">最后更新日期：2023年11月15日</p>
-
-        <div class="terms-content">
-            <h2>1. 接受条款</h2>
-            <p>通过访问和使用本网站，您同意遵守本服务条款的所有规定...</p>
-
-            <h2>2. 服务描述</h2>
-            <p>我们提供...服务，具体包括但不限于...</p>
-
-            <h2>3. 用户义务</h2>
-            <p>您同意不将本服务用于任何非法目的...</p>
-
-            <h2>4. 隐私政策</h2>
-            <p>您的隐私对我们很重要，请参阅我们的<a href="/privacy">隐私政策</a>...</p>
-
-            <h2>5. 知识产权</h2>
-            <p>本网站所有内容，包括但不限于文本、图形、标识...</p>
-
-            <h2>6. 免责声明</h2>
-            <p>本服务按"现状"提供，我们不做出任何明示或暗示的保证...</p>
-
-            <h2>7. 责任限制</h2>
-            <p>在任何情况下，我们都不对任何间接、附带、特殊...</p>
-
-            <h2>8. 条款修改</h2>
-            <p>我们保留随时修改这些条款的权利，修改后的条款将在发布后立即生效...</p>
-
-            <h2>9. 终止</h2>
-            <p>我们保留自行决定终止或暂停您访问服务的权利...</p>
-
-            <h2>10. 适用法律</h2>
-            <p>本条款受中华人民共和国法律管辖并按其解释...</p>
-        </div>
-
-        <div class="d-flex justify-content-between mt-4">
-            <a href="/" class="btn btn-outline-secondary">返回首页</a>
-            <!--div>
-                <href="/privacy" class="btn btn-outline-primary me-2">隐私政策</a>
-                <a href="/login" class="btn btn-accept">同意并继续</a>
-            </div-->
-        </div>
-
-        <footer>
-            <p>© 2023 我的公司 版权所有 | 联系方式: service@example.com</p>
-        </footer>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
-''')
-
-
-@auth.route('/forgot_password')
-def forgot_password():
-    return render_template('forgot_password.html')
-
-
-@auth.route('/register')
-def register():
-    return render_template('register.html')
-
-
-@auth.route('/index')
-def index():
-    return render_template('index.html')
-
-
-@auth.route('/logout', methods=['POST'])
+@api_bp.route('/logout', methods=['POST'])
 def logout():
     session.clear()
-    return redirect(url_for('src.login'))
+    return redirect(url_for('api.login'))
 
 
 def generate_captcha_text(length=None):
@@ -298,7 +167,7 @@ def generate_captcha_image(text):
     return image
 
 
-@auth.route('/api/captcha')
+@api_bp.route('/api/captcha')
 def get_captcha():
     """获取验证码图片"""
     captcha_text = generate_captcha_text()
@@ -320,8 +189,7 @@ def get_serializer():
     return URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
 
 
-# 定义忘记密码的API路由
-@auth.route('/api/forgot-password', methods=['GET', 'POST'])
+@api_bp.route('/api/forgot-password', methods=['GET', 'POST'])
 def api_forgot_password():
     """处理忘记密码的请求"""
 
@@ -356,7 +224,7 @@ def api_forgot_password():
     # 3. 发送密码重置邮件
     try:
         reset_url = url_for(
-            'src.reset_password',
+            'api.reset_password',
             token=token,
             _external=True
         )
@@ -384,7 +252,7 @@ def api_forgot_password():
     })
 
 
-@auth.route('/api/reset-password/<token>', methods=['GET', 'POST'])
+@api_bp.route('/api/reset-password/<token>', methods=['GET', 'POST'])
 def reset_password(token):
     """处理密码重置请求"""
 
@@ -437,7 +305,7 @@ def reset_password(token):
         return jsonify({
             "success": True,
             "message": "密码已重置",
-            "redirect": url_for('src.login')
+            "redirect": url_for('api.login')
         })
     except Exception as e:
         # 如果密码更新失败，回滚数据库更改并记录错误日志
@@ -460,7 +328,7 @@ def validate_registration(data):
     return errors
 
 
-@auth.route('/api/register', methods=['POST'])
+@api_bp.route('/api/register', methods=['POST'])
 def api_register():
     data = request.get_json()
     # 验证数据
@@ -497,6 +365,7 @@ class APIConnectionError(Exception):
 
 def handle_api_errors(f):
     """装饰器用于统一处理API错误"""
+
     @wraps(f)
     def wrapper(*args, **kwargs):
         try:
@@ -531,7 +400,7 @@ def validate_chat_request(data):
     return True, {'message': message, 'username': 'user'}
 
 
-@auth.route('/api/chat', methods=['POST'])
+@api_bp.route('/api/chat', methods=['POST'])
 @handle_api_errors
 def chat_api():
     """处理聊天API请求 """
@@ -586,26 +455,11 @@ def chat_api():
 
 
 # 错误处理
-@auth.errorhandler(404)
+@api_bp.errorhandler(404)
 def not_found(error):
     return jsonify({'error': '资源未找到'}), 404
 
 
-@auth.errorhandler(500)
+@api_bp.errorhandler(500)
 def internal_error(error):
     return jsonify({'error': '服务器内部错误'}), 500
-
-
-@auth.before_request
-def load_logged_in_user():
-    user_id = session.get("user_id")
-    if user_id:
-        user = db.session.get(User, user_id)
-        setattr(g, "user", user)
-    else:
-        setattr(g, "user", None)
-
-
-@auth.context_processor
-def inject_user_into_templates():
-    return {"user": g.user}

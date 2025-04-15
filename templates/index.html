@@ -13,7 +13,7 @@
             <span class="navbar-brand">DeepSeek 聊天室</span>
             <div class="d-flex">
                 <span id="currentUser" class="me-3"></span>
-                <form action="{{ url_for('src.logout') }}" method="POST">
+                <form action="{{ url_for('api.logout') }}" method="POST">
                     <button type="submit" class="btn btn-outline-danger">退出</button>
                 </form>
             </div>

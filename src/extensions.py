@@ -15,5 +15,9 @@ mail = Mail()
 limiter = Limiter(key_func=get_remote_address, storage_uri="redis://localhost:6379/0")
 
 
-def init_limiter(app):
-    limiter.init_app(app)
+def init_ext(app):
+    # limiter.init_app(app)
+    db.init_app(app)
+    bcrypt.init_app(app)
+    migrate.init_app(app, db)
+    mail.init_app(app)

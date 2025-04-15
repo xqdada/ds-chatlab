@@ -12,16 +12,14 @@ def create_app():
         app.config.from_pyfile('instance/config.py')
 
     # 初始化扩展
-    db.init_app(app)
-    bcrypt.init_app(app)
-    migrate.init_app(app, db)
-
-    from src.extensions import mail
-    mail.init_app(app)
+    from src.extensions import init_ext
+    init_ext(app)
 
     # 注册蓝图
-    from src.routers import auth
-    app.register_blueprint(auth)
+    from src.routers import api_bp
+    from src.views import auth_bp
+    app.register_blueprint(api_bp)
+    app.register_blueprint(auth_bp)
 
     # 初始化数据库
     @app.cli.command("init-db")
