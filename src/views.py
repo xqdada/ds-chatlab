@@ -137,9 +137,6 @@ def index():
     return render_template('index.html')
 
 
-
-
-
 @auth_bp.before_request
 def load_logged_in_user():
     user_id = session.get("user_id")
